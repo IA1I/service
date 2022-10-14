@@ -112,6 +112,23 @@ public class EmployeeDaoImp implements EmployeeDao {
         return employee;
     }
 
+    private Employee getManagerByIdWithFullChain(BigInteger id){
+        Employee employee = null;
+        try (PreparedStatement statement = connectionSource.createConnection().prepareStatement(SELECT_BY_ID)){
+            statement.setInt(ID_SELECT_INDEX, id.intValue());
+            try (ResultSet resultSet = statement.executeQuery()){
+                if(resultSet.next()){
+                    employee = createManagerWithFullChain(resultSet);
+                }
+            }
+        } catch (SQLException e){
+            e.printStackTrace();
+            throw new RuntimeException(e);
+        }
+
+        return employee;
+    }
+
     @Override
     public List<Employee> getAll() {
         List<Employee> employees = new ArrayList<>();
@@ -208,14 +225,14 @@ public class EmployeeDaoImp implements EmployeeDao {
     }
 
     @Override
-    public List<Employee> getByManager(Employee employee) {
+    public List<Employee> getByManager(Employee manager) {
         List<Employee> employees = new ArrayList<>();
         try (PreparedStatement statement = connectionSource.createConnection().prepareStatement(SELECT_BY_MANAGER)){
-            statement.setInt(MANAGER_SELECT_INDEX, employee.getManager().getId().intValue());
+            statement.setLong(MANAGER_SELECT_INDEX, manager.getId().longValue());
             ResultSet resultSet = statement.executeQuery();
             while (resultSet.next()){
-                Employee emp = createEmployee(resultSet);
-                employees.add(emp);
+                Employee employee = createEmployee(resultSet);
+                employees.add(employee);
             }
         } catch (SQLException e){
             e.printStackTrace();
@@ -227,7 +244,20 @@ public class EmployeeDaoImp implements EmployeeDao {
 
     @Override
     public Employee getByIdWithFullChain(BigInteger id) {
-        return null;
+        Employee employee = null;
+        try (PreparedStatement statement = connectionSource.createConnection().prepareStatement(SELECT_BY_ID)){
+            statement.setInt(ID_SELECT_INDEX, id.intValue());
+            try (ResultSet resultSet = statement.executeQuery()){
+                if(resultSet.next()){
+                    employee = createEmployeeWithFullChain(resultSet);
+                }
+            }
+        } catch (SQLException e){
+            e.printStackTrace();
+            throw new RuntimeException(e);
+        }
+
+        return employee;
     }
 
     private Employee createEmployee(ResultSet resultSet){
@@ -270,6 +300,48 @@ public class EmployeeDaoImp implements EmployeeDao {
         return employee;
     }
 
+    private Employee createEmployeeWithFullChain(ResultSet resultSet){
+        Employee employee = null;
+        try{
+            BigInteger id = BigInteger.valueOf(resultSet.getInt(COLUMN_ID));
+            FullName fullName = createFullName(resultSet);
+            Position position = getPosition(resultSet.getString(COLUMN_POSITION));
+            LocalDate hired = LocalDate.parse(resultSet.getString(COLUMN_HIRE_DATE));
+            BigDecimal salary = resultSet.getBigDecimal(COLUMN_SALARY);
+            BigInteger departmentId = BigInteger.valueOf(resultSet.getInt(COLUMN_DEPARTMENT));
+            Department department = new DepartmentDaoImp().getById(departmentId);
+            BigInteger managerId = BigInteger.valueOf(resultSet.getInt(COLUMN_MANAGER));
+            Employee manager = getManagerByIdWithFullChain(managerId);
+            employee = new Employee(id, fullName, position, hired, salary, manager, department);
+        } catch (SQLException e){
+            e.printStackTrace();
+            throw new RuntimeException(e);
+        }
+
+        return employee;
+    }
+
+    private Employee createManagerWithFullChain(ResultSet resultSet){
+        Employee employee = null;
+        try{
+            BigInteger id = BigInteger.valueOf(resultSet.getInt(COLUMN_ID));
+            FullName fullName = createFullName(resultSet);
+            Position position = getPosition(resultSet.getString(COLUMN_POSITION));
+            LocalDate hired = LocalDate.parse(resultSet.getString(COLUMN_HIRE_DATE));
+            BigDecimal salary = resultSet.getBigDecimal(COLUMN_SALARY);
+            BigInteger departmentId = BigInteger.valueOf(resultSet.getInt(COLUMN_DEPARTMENT));
+            Department department = new DepartmentDaoImp().getById(departmentId);
+            BigInteger managerID = BigInteger.valueOf(resultSet.getInt(COLUMN_MANAGER));
+            Employee manager = getManagerByIdWithFullChain(managerID);
+
+            employee = new Employee(id, fullName, position, hired, salary, manager, department);
+        } catch (SQLException e){
+            e.printStackTrace();
+            throw new RuntimeException(e);
+        }
+
+        return employee;
+    }
 
     private FullName createFullName(ResultSet resultSet) throws SQLException {
         String firstName = resultSet.getString(COLUMN_FIRSTNAME);
