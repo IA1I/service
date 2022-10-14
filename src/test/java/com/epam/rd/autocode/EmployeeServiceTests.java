@@ -55,6 +55,7 @@ public class EmployeeServiceTests {
             final List<Employee> expected = readEmployees(
                     Paths.get("src/test/resources", filter, sort, dirNameFromPaging(paging))
             );
+            System.out.println(expected.size());
             assertThat(actual, containsInAnyOrder(expected.toArray()));
             assertThat(expected, containsInAnyOrder(actual.toArray()));
         }
